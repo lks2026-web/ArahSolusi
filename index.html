@@ -836,19 +836,55 @@
     if (event) event.preventDefault();
 
     // 1. Ambil nilai input dari elemen textarea/input (Pastikan ID 'keluhan-teks' atau 'keluhan' sesuai dengan elemen HTML Anda)
-    const elemenInput = document.getElementById('keluhan') || document.getElementById('keluhan-teks');
+window.prosesHasilKeGemini = async function(event) {
+    if (event) event.preventDefault();
+
+    // 1. Mengambil elemen berdasarkan ID asli di HTML Anda ('keluhan-teks')
+    const elemenInput = document.getElementById('keluhan-teks');
     
     if (!elemenInput) {
-        console.error("Elemen input keluhan tidak ditemukan di HTML!");
+        console.error("Elemen input dengan ID 'keluhan-teks' tidak ditemukan!");
+        alert("Sistem error: Kotak input keluhan gagal dideteksi.");
         return;
     }
 
-    const teksKeluhanUser = elemenInput.value;
+    const keluhanTeks = elemenInput.value;
 
-    if (!teksKeluhanUser.trim()) {
+    if (!keluhanTeks.trim()) {
         alert("Silakan masukkan keluhan Anda terlebih dahulu.");
         return;
     }
+
+    try {
+        // Tampilkan indikator loading jika ada di UI Anda
+        console.log("Mengirim keluhan:", keluhanTeks);
+
+        // 2. Lakukan fetch ke Netlify Serverless Function
+        const response = await fetch('/.netlify/functions/solusi', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pesan: keluhanTeks })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server bermasalah (Status: ${response.status})`);
+        }
+
+        const data = await response.json();
+        
+        // 3. Menampilkan hasil kembalian dari AI ke elemen UI Anda
+        console.log("Hasil AI diterima:", data.jawaban);
+        
+        // Pastikan Anda mengarahkan data.jawaban ke elemen teks hasil di web Anda
+        // Contoh: document.getElementById('hasil-analisis').innerText = data.jawaban;
+
+    } catch (error) {
+        console.error("Fetch Error:", error);
+        alert("Gagal memproses pengaduan: " + error.message);
+    }
+};
 
     try {
         // Tampilkan status loading jika ada
