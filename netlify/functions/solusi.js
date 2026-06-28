@@ -3129,7 +3129,7 @@ const databaseSolusi = [
 ]
 
 // 2. ENDPOINT UTAMA UNTUK NETLIFY
-app.post('/api/solusi', async (req, res) => {
+app.post('*', async (req, res) => {
     try {
         const { pesan } = req.body;
 

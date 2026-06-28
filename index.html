@@ -852,15 +852,13 @@
             seksiHasil.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             try {
-                const response = await fetch('/api/solusi', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        pesan: `${namaKategoriTeks[kategoriAktif]} (${subkategoriAktif}) - ${deskripsiMasalah}`
-                    })
-                });
+                const response = await fetch('/.netlify/functions/solusi', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ pesan: inputKeluhan })
+});
 
                 if (!response.ok) {
                     throw new Error('Terjadi gangguan pada koneksi server backend.');
@@ -1614,3 +1612,6 @@
     </footer>
 
     <script type="module">
+</script>
+</body>
+</html>
