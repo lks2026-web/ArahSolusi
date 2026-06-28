@@ -717,7 +717,7 @@
         let kategoriAktif = "";
         let subkategoriAktif = "";
 
-        // Mapping Data Kategori Utama ke Sub-Kategori / Pilihan Masalah beserta kepanjangannya
+        // Mapping Data Kategori Utama ke Sub-Kategori
         const dataSubkategori = {
             administrasi: [
                 { id: "ktp", nama: "KTP (Kartu Tanda Penduduk)" },
@@ -782,7 +782,7 @@
             }
         }
 
-        // Fungsi Memilih Masalah Spesifik (Sub-Kategori)
+        // Fungsi Memilih Masalah Spesifik
         window.pilihSubkategori = function(elemen, idSub, namaSub) {
             const semuaSubKartu = document.querySelectorAll('#subkategori-grid .kategori-card');
             semuaSubKartu.forEach(kartu => kartu.classList.remove('terpilih'));
@@ -793,7 +793,7 @@
             const wrapLanjut = document.getElementById('lanjut-kuesioner');
             const teksKategori = document.getElementById('nama-kategori-terpilih');
             
-            teksKategori.innerText = `${namaKategoriTeks[kategoriAktif]} — Spesisifikasi: ${namaSub}`;
+            teksKategori.innerText = `${namaKategoriTeks[kategoriAktif]} — Spesifikasi: ${namaSub}`;
             wrapLanjut.style.display = 'block';
             
             document.getElementById('kuesioner').style.display = 'none';
@@ -811,7 +811,7 @@
             const containerPertanyaan = document.getElementById('container-pertanyaan');
             containerPertanyaan.innerHTML = `
                 <div class="kuesioner-item">
-                    <label for="input-masalah" style="font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 15px; font-size: 16px;">
+                    <label style="font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 15px; font-size: 16px;">
                         Kategori Terpilih: <span style="color: var(--primary-color);">${namaKategoriTeks[kategoriAktif]} (${subkategoriAktif})</span>
                         <br><br>
                         Ceritakan secara detail kronologi atau keluhan masalah yang sedang Anda hadapi saat ini:
@@ -831,92 +831,66 @@
             }, 100);
         }
 
-        // Pengiriman Formulir Masalah Akhir ke Server API Backend
+        // Pengiriman Formulir Akhir ke Server Netlify Serverless
         window.prosesHasilKeGemini = async function(event) {
-    if (event) event.preventDefault();
+            event.preventDefault();
+            if (!kategoriAktif || !subkategoriAktif) return;
 
-    // 1. Ambil nilai input dari elemen textarea/input (Pastikan ID 'keluhan-teks' atau 'keluhan' sesuai dengan elemen HTML Anda)
-window.prosesHasilKeGemini = async function(event) {
-    if (event) event.preventDefault();
+            const elemenInput = document.getElementById('input-masalah');
+            if (!elemenInput) return;
 
-    // 1. Ambil elemen input teks keluhan dari HTML Anda
-    const elemenTextarea = document.getElementById('keluhan-teks');
-    
-    if (!elemenTextarea) {
-        console.error("Elemen 'keluhan-teks' tidak ditemukan!");
-        alert("Sistem error: Kotak input keluhan gagal dideteksi.");
-        return;
-    }
+            const keluhanTeks = elemenInput.value;
+            const daftarProsedur = document.getElementById('daftar-prosedur');
+            const daftarLembaga = document.getElementById('daftar-lembaga');
+            const seksiHasil = document.getElementById('hasil-solusi');
+            const tombolSubmit = event.target.querySelector('button[type="submit"]');
 
-    // 2. Deklarasikan variabel keluhanTeks secara tegas di sini
-    const keluhanTeks = elemenTextarea.value;
+            tombolSubmit.disabled = true;
+            tombolSubmit.style.opacity = "0.5";
 
-    if (!keluhanTeks || !keluhanTeks.trim()) {
-        alert("Silakan masukkan keluhan Anda terlebih dahulu.");
-        return;
-    }
+            daftarProsedur.innerHTML = '<li><i class="fas fa-spinner fa-spin" style="color: var(--primary-color);"></i> Menganalisis kronologi pengaduan Anda via AI...</li>';
+            daftarLembaga.innerHTML = '<li><i class="fas fa-search-location" style="color: var(--secondary-color);"></i> Mencari data instansi publik resmi Indonesia...</li>';
+            
+            seksiHasil.style.display = 'block';
+            seksiHasil.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    try {
-        console.log("Mengirim teks pengaduan:", keluhanTeks);
+            try {
+                const response = await fetch('/.netlify/functions/solusi', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        pesan: `${namaKategoriTeks[kategoriAktif]} (${subkategoriAktif}) - ${keluhanTeks}`
+                    })
+                });
 
-        // 3. Lakukan fetch ke Netlify Serverless Function menggunakan variabel di atas
-        const response = await fetch('/.netlify/functions/solusi', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ pesan: keluhanTeks })
-        });
+                if (!response.ok) {
+                    throw new Error('Terjadi gangguan pada koneksi server backend Netlify.');
+                }
 
-        if (!response.ok) {
-            throw new Error(`Server bermasalah (Status: ${response.status})`);
+                const dataSolusi = await response.json();
+
+                // Format Teks Jawaban AI Markdown/Plain agar rapi di UI
+                daftarProsedur.innerHTML = `
+                    <div style="background: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; white-space: pre-line; line-height: 1.8;">
+                        ${dataSolusi.jawaban}
+                    </div>
+                `;
+                
+                daftarLembaga.innerHTML = `
+                    <li><i class="fas fa-check-circle" style="color: var(--accent-color);"></i> Instansi & langkah mitigasi telah dijabarkan di atas secara terpadu.</li>
+                `;
+
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                daftarProsedur.innerHTML = '<li style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Gagal terhubung ke backend: ' + error.message + '</li>';
+                daftarLembaga.innerHTML = '<li style="color: #ef4444;"><i class="fas fa-times-circle"></i> Silakan periksa kembali log fungsi Netlify Anda.</li>';
+            } finally {
+                tombolSubmit.disabled = false;
+                tombolSubmit.style.opacity = "1";
+            }
         }
-
-        const data = await response.json();
-        console.log("Hasil AI sukses diterima:", data.jawaban);
-        
-        // 3. Menampilkan hasil kembalian dari AI ke elemen UI Anda
-        console.log("Hasil AI diterima:", data.jawaban);
-        
-        // Pastikan Anda mengarahkan data.jawaban ke elemen teks hasil di web Anda
-        // Contoh: document.getElementById('hasil-analisis').innerText = data.jawaban;
-
-    } catch (error) {
-        console.error("Fetch Error:", error);
-        alert("Gagal memproses pengaduan: " + error.message);
-    }
-};
-
-    try {
-        // Tampilkan status loading jika ada
-        // ... (kode loading Anda)
-
-        // 2. Lakukan fetch ke Netlify Serverless Function
-        // GANTI BLOK FETCH ANDA MENJADI PERSIS SEPERTI INI:
-const response = await fetch('/.netlify/functions/solusi', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    // Menggunakan 'keluhanTeks' karena ini adalah nama variabel asli di index.html Anda
-    body: JSON.stringify({ pesan: keluhanTeks }) 
-});
-
-        if (!response.ok) {
-            throw new Error(`Server bermasalah (Status: ${response.status})`);
-        }
-
-        const data = await response.json();
-        
-        // 3. Proses data hasil kembalian dari AI
-        // ... (kode untuk menampilkan data.jawaban ke UI Anda)
-        console.log("Hasil AI:", data.jawaban);
-
-    } catch (error) {
-        console.error("Fetch Error:", error);
-        alert("Gagal memproses pengaduan: " + error.message);
-    }
-};
     </script>
 </body>
 =======
