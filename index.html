@@ -855,14 +855,15 @@
         // ... (kode loading Anda)
 
         // 2. Lakukan fetch ke Netlify Serverless Function
-        const response = await fetch('/.netlify/functions/solusi', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            // Menggunakan variabel 'teksKeluhanUser' yang sudah pasti terdefinisi di atas
-            body: JSON.stringify({ pesan: teksKeluhanUser }) 
-        });
+        // GANTI BLOK FETCH ANDA MENJADI PERSIS SEPERTI INI:
+const response = await fetch('/.netlify/functions/solusi', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    // Menggunakan 'keluhanTeks' karena ini adalah nama variabel asli di index.html Anda
+    body: JSON.stringify({ pesan: keluhanTeks }) 
+});
 
         if (!response.ok) {
             throw new Error(`Server bermasalah (Status: ${response.status})`);
