@@ -1,22 +1,15 @@
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fetch = require('node-fetch');
 const serverless = require('serverless-http');
-require('dotenv').config();
+const cors = require('cors');
+const { Groq } = require('groq-sdk');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// ==========================================
-// MIDDLEWARE & STATIC FILES
-// ==========================================
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'html lks.html'));
+const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY
 });
 
 // ==========================================
@@ -3135,151 +3128,38 @@ const databaseSolusi = [
     }
 ]
 
-// ==========================================
-// FUNGSI PENCARIAN DATABASE
-// ==========================================
-function cariDiDatabase(kategori, deskripsi) {
-    const teksUser = `${kategori} ${deskripsi}`.toLowerCase();
-    return databaseSolusi.find(data => 
-        data.kata_kunci.some(keyword => teksUser.includes(keyword))
-    );
-}
-
-// ==========================================
-// ENDPOINT API UNTUK PENCARIAN SOLUSI DENGAN AI (GROQ)
-// ==========================================
+// 2. ENDPOINT UTAMA UNTUK NETLIFY
 app.post('/api/solusi', async (req, res) => {
     try {
-        // 1. Ambil keluhan dari input pengguna di frontend
-        const keluhanPengguna = req.body.pesan; 
+        const { pesan } = req.body;
 
-        if (!keluhanPengguna) {
-            return res.status(400).json({ error: "Keluhan tidak boleh kosong" });
+        if (!pesan) {
+            return res.status(400).json({ error: "Pesan tidak boleh kosong." });
         }
 
-        // ========================================================
-        // 2. CARI DI DATABASE LOKAL DULU (BYPASS GROQ AI)
-        // ========================================================
-        let solusiDitemukan = null;
-        const keluhanKecil = keluhanPengguna.toLowerCase();
-
-        for (const data of databaseSolusi) {
-            // Cek apakah ada kata kunci yang cocok dengan ketikan user
-            const cocok = data.kata_kunci.some(keyword => keluhanKecil.includes(keyword));
-            if (cocok) {
-                solusiDitemukan = data;
-                break;
-            }
-        }
-
-        // 3. JIKA KETEMU DI LOKAL -> LANGSUNG KIRIM (STOP DI SINI)
-        if (solusiDitemukan) {
-            console.log(`✅ Solusi lokal ditemukan untuk: "${keluhanPengguna}"`);
-            return res.json({
-                prosedur: solusiDitemukan.prosedur,
-                lembaga: solusiDitemukan.lembaga
-            });
-        }
-
-        // ========================================================
-        // 4. JIKA TIDAK KETEMU DI LOKAL, BARU PANGGIL GROQ AI
-        // ========================================================
-        console.log(`🔍 Mencari dengan AI untuk: "${keluhanPengguna}"`);
-        const ringkasanDatabase = databaseSolusi.map(item => ({
-            id: item.Id,
-            kata_kunci: item.kata_kunci.join(", ")
-        }));
-
-        const systemPrompt = `
-        Kamu adalah asisten pengklasifikasi masalah birokrasi di Indonesia.
-        Daftar masalah: ${JSON.stringify(ringkasanDatabase)}
-        Jawab HANYA DENGAN ANGKA ID yang paling cocok dengan keluhan user. 
-        Jika tidak ada yang cocok sama sekali, jawab: 0
-        `;
-
-        const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile', 
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: keluhanPengguna }
-                ],
-                temperature: 0.1
-            })
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "user",
+                    content: `Berikan analisis solusi teknis dan lembaga berwenang untuk keluhan ini: ${pesan}`
+                }
+            ],
+            model: "llama3-8b-8192"
         });
 
-        if (!groqResponse.ok) {
-            const errorText = await groqResponse.text();
-            console.error("❌ Alasan Penolakan Groq:", errorText);
-            throw new Error(`Groq API Error: ${groqResponse.status}`);
-        }
+        const jawabanAI = chatCompletion.choices[0]?.message?.content || "AI tidak memberikan jawaban.";
 
-        const groqData = await groqResponse.json();
-        const aiReply = groqData.choices[0].message.content.trim();
-        const matchedId = parseInt(aiReply);
-
-        if (matchedId === 0 || isNaN(matchedId)) {
-            return res.json({
-                prosedur: [
-                    "Maaf, kami tidak menemukan solusi yang tepat di sistem kami.",
-                    "Pastikan keluhan berkaitan dengan layanan administrasi publik/birokrasi."
-                ],
-                lembaga: ["Pusat Layanan Terpadu (PTSP)"]
-            });
-        }
-
-        const solusiAI = databaseSolusi.find(item => item.Id === matchedId);
-        if (solusiAI) {
-            return res.json({
-                prosedur: solusiAI.prosedur,
-                lembaga: solusiAI.lembaga
-            });
-        } else {
-            throw new Error("ID dari AI tidak ada di database.");
-        }
+        // Anda juga bisa mengirimkan dataSubKategori ini ke frontend jika diperlukan
+        res.json({ 
+            jawaban: jawabanAI,
+            dataKategori: dataSubKategori // Data Anda aman dan ikut terkirim
+        });
 
     } catch (error) {
-        console.error("Error pada proses AI/Fetch:", error);
-        
-        // 5. Sistem Cadangan (Fallback)
-        return res.json({
-            prosedur: [
-                "Mohon maaf, sistem sedang mengalami gangguan jaringan.",
-                "Silakan siapkan KTP, Kartu Keluarga, dan bukti pendukung terkait masalah Anda."
-            ],
-            lembaga: [
-                "Dinas Pemerintahan Terkait",
-                "PTSP"
-            ]
-        });
+        console.error(error);
+        res.status(500).json({ error: "Terjadi gangguan pada koneksi server backend." });
     }
 });
 
-
-// ==========================================
-// MENJALANKAN SERVER (DIKOMENTARI / DINONAKTIFKAN UNTUK NETLIFY)
-// ==========================================
-/*
-app.listen(PORT, () => {
-    console.log(`==================================================`);
-    console.log(`🚀 Server ArahSolusi aktif di http://localhost:${PORT}`);
-    
-    // Mengecek apakah GROQ_API_KEY sudah terdeteksi di .env
-    const keyStatus = process.env.GROQ_API_KEY 
-        ? `AKTIF (Awalan ${process.env.GROQ_API_KEY.substring(0, 8)}...)` 
-        : 'TIDAK TERDETEKSI (Pastikan ada GROQ_API_KEY di file .env!)';
-        
-    console.log(`🔑 GROQ API KEY: ${keyStatus}`);
-    console.log(`==================================================`);
-});
-*/
-
-// ==========================================
-// EKSPOR HANDLER UNTUK NETLIFY SERVERLESS
-// ==========================================
-module.exports.handler = serverless(app); // <-- Taruh ini di baris paling terakhir sendiri
+// 3. PASANG ADAPTER SERVERLESS (GANTIKAN app.listen)
+module.exports.handler = serverless(app);
