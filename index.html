@@ -833,68 +833,52 @@
 
         // Pengiriman Formulir Masalah Akhir ke Server API Backend
         window.prosesHasilKeGemini = async function(event) {
-            event.preventDefault();
-            if (!kategoriAktif || !subkategoriAktif) return;
+    if (event) event.preventDefault();
 
-            const deskripsiMasalah = document.getElementById('input-masalah').value;
-            const daftarProsedur = document.getElementById('daftar-prosedur');
-            const daftarLembaga = document.getElementById('daftar-lembaga');
-            const seksiHasil = document.getElementById('hasil-solusi');
-            const tombolSubmit = event.target.querySelector('button[type="submit"]');
+    // 1. Ambil nilai input dari elemen textarea/input (Pastikan ID 'keluhan-teks' atau 'keluhan' sesuai dengan elemen HTML Anda)
+    const elemenInput = document.getElementById('keluhan') || document.getElementById('keluhan-teks');
+    
+    if (!elemenInput) {
+        console.error("Elemen input keluhan tidak ditemukan di HTML!");
+        return;
+    }
 
-            tombolSubmit.disabled = true;
-            tombolSubmit.style.opacity = "0.5";
+    const teksKeluhanUser = elemenInput.value;
 
-            daftarProsedur.innerHTML = '<li><i class="fas fa-spinner fa-spin" style="color: var(--primary-color);"></i> Menganalisis kronologi pengaduan Anda via AI...</li>';
-            daftarLembaga.innerHTML = '<li><i class="fas fa-search-location" style="color: var(--secondary-color);"></i> Mencari data instansi publik resmi Indonesia...</li>';
-            
-            seksiHasil.style.display = 'block';
-            seksiHasil.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!teksKeluhanUser.trim()) {
+        alert("Silakan masukkan keluhan Anda terlebih dahulu.");
+        return;
+    }
 
-            try {
-                // SESUAIKAN VARIABELNYA DI SINI
-            const response = await fetch('/.netlify/functions/solusi', {
-             method: 'POST',
-              headers: {
-             'Content-Type': 'application/json'
-          },
-            // Jika variabel di atasnya bernama 'keluhan', ubah bagian kanan ini menjadi 'keluhan'
-             body: JSON.stringify({ pesan: keluhan }) 
-           });
+    try {
+        // Tampilkan status loading jika ada
+        // ... (kode loading Anda)
 
-                if (!response.ok) {
-                    throw new Error('Terjadi gangguan pada koneksi server backend.');
-                }
+        // 2. Lakukan fetch ke Netlify Serverless Function
+        const response = await fetch('/.netlify/functions/solusi', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            // Menggunakan variabel 'teksKeluhanUser' yang sudah pasti terdefinisi di atas
+            body: JSON.stringify({ pesan: teksKeluhanUser }) 
+        });
 
-                const dataSolusi = await response.json();
-
-                daftarProsedur.innerHTML = "";
-                dataSolusi.prosedur.forEach(p => {
-                    const li = document.createElement('li');
-                    li.innerText = p;
-                    daftarProsedur.appendChild(li);
-                });
-
-                daftarLembaga.innerHTML = "";
-                dataSolusi.lembaga.forEach(l => {
-                    const li = document.createElement('li');
-                    li.style.background = "#ffffff";
-                    li.style.padding = "15px 20px";
-                    li.style.borderRadius = "10px";
-                    li.style.border = "1px solid #e2e8f0";
-                    li.innerHTML = '<i class="fas fa-building" style="color: var(--secondary-color); margin-right: 8px;"></i> ' + l;
-                    daftarLembaga.appendChild(li);
-                });
-
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                daftarProsedur.innerHTML = '<li style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Gagal terhubung ke backend. Pesan sistem: ' + error.message + '</li>';
-                daftarLembaga.innerHTML = '<li style="color: #ef4444;"><i class="fas fa-times-circle"></i> Gagal memuat rekomendasi lembaga.</li>';
-            } finally {
-                tombolSubmit.disabled = false;
-                tombolSubmit.style.opacity = "1";
-            }
+        if (!response.ok) {
+            throw new Error(`Server bermasalah (Status: ${response.status})`);
         }
+
+        const data = await response.json();
+        
+        // 3. Proses data hasil kembalian dari AI
+        // ... (kode untuk menampilkan data.jawaban ke UI Anda)
+        console.log("Hasil AI:", data.jawaban);
+
+    } catch (error) {
+        console.error("Fetch Error:", error);
+        alert("Gagal terhubung ke backend: " + error.message);
+    }
+};
     </script>
 </body>
 =======
