@@ -855,16 +855,16 @@
             seksiHasil.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             try {
-                const response = await fetch('/.netlify/functions/solusi', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        pesan: `${namaKategoriTeks[kategoriAktif]} (${subkategoriAktif}) - ${keluhanTeks}`
-                    })
-                });
-
+// GANTI BLOK FETCH DI INDEX.HTML ANDA MENJADI SEPERTI INI:
+const response = await fetch('https://amazing-lily-b05334.netlify.app/.netlify/functions/solusi', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        pesan: `${namaKategoriTeks[kategoriAktif]} (${subkategoriAktif}) - ${keluhanTeks}`
+    })
+});
                 if (!response.ok) {
                     throw new Error('Terjadi gangguan pada koneksi server backend Netlify.');
                 }
