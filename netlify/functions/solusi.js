@@ -5,7 +5,13 @@ const { Groq } = require('groq-sdk');
 
 const app = express();
 
-app.use(cors());
+// PASTIKAN SEPERTI INI AGAR BISA DIAKSES DARI GITHUB PAGES
+app.use(cors({
+    origin: '*', // Mengizinkan semua domain (termasuk GitHub Pages Anda)
+    methods: ['POST', 'GET', 'OPTIONS'],
+    allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.json());
 
 const groq = new Groq({
@@ -15,7 +21,7 @@ const groq = new Groq({
 // ==========================================
 // DATA BASE KONDISI UMUM BIROKRASI INDONESIA
 // ==========================================
-const databaseSolusi = [
+const dataSubKategori = [
     // --- Bagian 1: KTP ---
     {
         "Id": 1,
@@ -3125,10 +3131,10 @@ const databaseSolusi = [
             "Lapor.go.id",
             "Dinas Sosial"
         ]
-    }
+    },
 ]
 
-// 2. ENDPOINT UTAMA UNTUK NETLIFY
+// Menerima semua rute POST yang masuk dari Netlify
 app.post('*', async (req, res) => {
     try {
         const { pesan } = req.body;
@@ -3141,7 +3147,7 @@ app.post('*', async (req, res) => {
             messages: [
                 {
                     role: "user",
-                    content: `Berikan analisis solusi teknis dan lembaga berwenang untuk keluhan ini: ${pesan}`
+                    content: `Berikan analisis solusi teknis resmi di Indonesia dan lembaga berwenang untuk keluhan ini: ${pesan}`
                 }
             ],
             model: "llama3-8b-8192"
@@ -3149,17 +3155,14 @@ app.post('*', async (req, res) => {
 
         const jawabanAI = chatCompletion.choices[0]?.message?.content || "AI tidak memberikan jawaban.";
 
-        // Anda juga bisa mengirimkan dataSubKategori ini ke frontend jika diperlukan
         res.json({ 
-            jawaban: jawabanAI,
-            dataKategori: dataSubKategori // Data Anda aman dan ikut terkirim
+            jawaban: jawabanAI
         });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Terjadi gangguan pada koneksi server backend." });
+        console.error("Error pada Fungsi Groq:", error);
+        res.status(500).json({ error: "Terjadi gangguan internal pada serverless backend." });
     }
 });
 
-// 3. PASANG ADAPTER SERVERLESS (GANTIKAN app.listen)
 module.exports.handler = serverless(app);
