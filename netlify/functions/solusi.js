@@ -3135,7 +3135,7 @@ const dataSubKategori = [
 ]
 
 // Menerima semua rute POST yang masuk dari Netlify
-app.post('*', async (req, res) => {
+app.post(/.*/, async (req, res) => {
     try {
         const { pesan } = req.body;
 
